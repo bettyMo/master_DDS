@@ -1,0 +1,109 @@
+# Applications
+
+Some _significant_ applications are demonstrated in this chapter.
+
+## Example one
+Taux de recours moyen :
+
+
+```{r}
+tableau <- read.delim("~/Dossier_tout_compris/Ined/stihmo/donnees/taleau.csv")
+p_moy<-sum(tableau$eff_stim)/sum(tableau$eff_tot)
+p_moy
+
+```
+
+
+On divise en 3 cas de figures 
+```{r}
+tableau$proportion<-tableau$eff_stim/tableau$eff_tot
+
+centreereduit<-scale(tableau$proportion)
+mini<-min(centreereduit)
+max<-max(centreereduit)
+tableau$varia<-cut(centreereduit,c((mini-1),-1,1,max))
+levels(tableau$varia)<-c("sous","indd","sur")
+table(tableau$varia)
+
+```
+
+
+
+
+holm
+
+## Test unilateral
+```{r decoupe_tab}
+lignesur<-which(tableau$varia=="sur")
+lignesous<-which(tableau$varia=="sous")
+ligneindd<-which(tableau$varia=="indd")
+p_moy<-sum(tableau$eff_stim)/sum(tableau$eff_tot)
+```
+
+On calcule les pvaleurs dans chaque cas et on ajuste par la méthode de holm.
+```{r creation_fonction}
+transfo<-function(tab,motclef,p)
+{
+  aa<-NULL
+  for(i in 1:nrow(tab))
+  {
+   
+
+    aa<-c(aa,binom.test(tab[i,"eff_stim"],round(tab[i,"eff_tot"],0),p=p,alternative=motclef)$p.value)
+  
+  }
+  return(p.adjust(aa,"holm"))
+  
+}
+```
+
+A partir de ces p_valeurs, on creer une variable à trous modalite, "sur,sous,"neutre"
+
+
+```{r }
+tableau$var<-2
+
+tableau$var[lignesur]<-transfo(tableau[lignesur,],"greater",p=p_moy)
+tableau$var[lignesous]<-transfo(tableau[lignesous,],"less",p=p_moy)
+tableau$var[ligneindd]<-transfo(tableau[ligneindd,],"two.sided",p=p_moy)
+summary(tableau$var)
+```
+
+On compare par sous et sur précedemment crée
+
+```{r }
+table(tableau[which(tableau$var<=0.05),"varia"])
+
+table(tableau[,"varia"])
+```
+
+```{r}
+tableau$nvelle<-"neutre"
+tableau[which(tableau$var<=0.05 & tableau$proportion>=p_moy),]$nvelle<-"sur"
+tableau[which(tableau$var<=0.05 & tableau$proportion<=p_moy),]$nvelle<-"sous"
+table(tableau$varia,tableau$nvelle)
+```
+
+## Test Bilateral
+Le travail est le même que précédemment mais on ne divise pas le tableau , on ne fait que tests bilatéraux
+```{r}
+tableau$var2<-2
+tableau$var2<-transfo(tableau,"two.sided",p=p_moy)
+plot(tableau[,c("var","var2")])
+```
+
+On effectue la même classification que l'on compare à la précédente:
+```{r}
+tableau$nvelle2<-"neutre"
+tableau[which(tableau$var2<=0.05 & tableau$proportion>=p_moy),]$nvelle2<-"sur"
+tableau[which(tableau$var2<=0.05 & tableau$proportion<=p_moy),]$nvelle2<-"sous"
+table(tableau$varia,tableau$nvelle2)
+table(tableau$nvelle,tableau$nvelle2)
+```
+
+```{r creation_f}
+
+table(tableau$nvelle,tableau$nvelle2,useNA="ifany",deparse.level = 2)
+```
+
+
